@@ -1,9 +1,48 @@
 /* Main Application Logic */
+let socket;
 
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. Global Init
+function initSocket() {
+    if (typeof io === 'undefined') {
+        console.warn('Socket.IO not loaded. Real-time updates disabled.');
+        return;
+    }
+    socket = io();
+    const user = Auth.getCurrentUser();
+    
+    // Safety check: Join room even if role is missing (default to customer behavior)
+    if (user && (!user.role || user.role === 'customer')) {
+        console.log(`[SOCKET] Attempting to join user room: user_${user.email}`);
+        socket.emit('join_user_room', user.email);
+        
+        socket.on('ORDER_STATUS_UPDATE', (data) => {
+            console.log('[SOCKET] Received ORDER_STATUS_UPDATE:', data);
+            Cart.showToast(`Order #${data.orderId.toString().slice(-6)} updated to: ${data.status}`, 'info');
+            
+            // If user is on profile page, refresh history
+            if (document.body.id === 'page-profile' && typeof loadOrderHistory === 'function') {
+                console.log('[SOCKET] Refreshing order history...');
+                loadOrderHistory();
+            }
+        });
+    }
+
+    socket.on('connect', () => console.log('[SOCKET] Connected to server'));
+    socket.on('connect_error', (err) => console.error('[SOCKET] Connection error:', err));
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // 0. Socket Init
+    initSocket();
+
+    // 0. Route Guard (Run immediately)
+    Auth.checkAccess();
+
+    // 1. Backend Data Init
+    await DB.init();
+
+    // 2. Global Init
     Auth.updateNavbar();
-    updateActiveNavItem(); // New: Highlight active nav
+    updateActiveNavItem(); // Highlight active nav
     Cart.updateBadge();
     initTheme();
     initFooterPopups();
@@ -25,11 +64,76 @@ document.addEventListener('DOMContentLoaded', () => {
         case 'page-login':
             initLoginPage();
             break;
+        case 'page-offers':
+            initOffersPage();
+            break;
         case 'page-profile':
             initProfilePage();
             break;
     }
 });
+
+/* --- Offers Page Logic --- */
+async function initOffersPage() {
+    const listContainer = document.getElementById('offers-list');
+    
+    try {
+        const offers = await ApiClient.getOffers();
+        listContainer.innerHTML = '';
+
+        if (offers.length === 0) {
+            listContainer.innerHTML = '<div class="col-12 text-center p-5"><h3 class="text-muted">No active offers at the moment.</h3></div>';
+            return;
+        }
+
+        offers.forEach(offer => {
+            const card = document.createElement('div');
+            card.className = 'col-md-6 col-lg-4 mb-4';
+            card.innerHTML = `
+                <div class="card border-0 shadow-sm h-100 offer-card animate-fade-in-up">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <img src="${offer.image}" alt="" style="width: 50px; height: 50px;">
+                            <span class="badge bg-brand-light text-brand fw-bold">${offer.tag}</span>
+                        </div>
+                        <h5 class="fw-bold mb-1">${offer.title}</h5>
+                        <p class="text-muted small mb-3">${offer.description}</p>
+                        
+                        <div class="mt-auto border-top pt-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="bg-light px-3 py-2 rounded border border-dashed text-uppercase fw-bold small" style="letter-spacing: 1px;">
+                                    ${offer.code}
+                                </div>
+                                <button class="btn btn-sm btn-brand copy-btn" data-code="${offer.code}">COPY</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            listContainer.appendChild(card);
+        });
+
+        // Copy Logic
+        document.querySelectorAll('.copy-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const code = this.dataset.code;
+                navigator.clipboard.writeText(code).then(() => {
+                    const originalText = this.innerText;
+                    this.innerText = 'COPIED!';
+                    this.classList.replace('btn-brand', 'btn-success');
+                    setTimeout(() => {
+                        this.innerText = originalText;
+                        this.classList.replace('btn-success', 'btn-brand');
+                    }, 2000);
+                });
+            });
+        });
+
+    } catch (error) {
+        console.error('Failed to load offers:', error);
+        listContainer.innerHTML = '<div class="alert alert-danger">Failed to load offers. Please try again later.</div>';
+    }
+}
 
 /* --- Profile Page Logic --- */
 function initProfilePage() {
@@ -90,67 +194,13 @@ function initProfilePage() {
         }
     });
 
-    // Load Orders
-    const historyKey = `orders_${user.email}`;
-    const orders = JSON.parse(localStorage.getItem(historyKey) || '[]');
-    const historyContainer = document.getElementById('order-history-list');
-    
-    if (orders.length > 0) {
-        historyContainer.innerHTML = '';
-        orders.forEach(order => {
-            const date = new Date(order.date).toLocaleDateString();
-            const time = new Date(order.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            // Calculate Item text
-            const itemText = order.items.map(i => `${i.quantity}x ${i.name}`).join(', ');
-             // Find Restaurant Name safely
-            const r = DB.restaurants.find(res => res.id === order.restaurantId);
-            const rName = r ? r.name : 'Restaurant';
+    // Load Orders Helper is now global
+    loadOrderHistory();
 
-            const card = document.createElement('div');
-            card.className = 'card mb-3 border-0 shadow-sm';
-            card.innerHTML = `
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div>
-                            <h6 class="fw-bold mb-0 text-dark">${rName}</h6>
-                            <small class="text-muted">${date} at ${time}</small>
-                        </div>
-                        <span class="badge bg-success">${order.status}</span>
-                    </div>
-                    <p class="small text-muted mb-2 text-truncate">${itemText}</p>
-                    <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-2">
-                        <span class="fw-bold text-dark">Total Paid: ₹${order.total}</span>
-                        <button class="btn btn-sm btn-outline-brand reorder-btn" data-order-id="${order.id}">Reorder</button>
-                    </div>
-                </div>
-            `;
-            historyContainer.appendChild(card);
-        });
-
-        // Reorder Logic (Simple: Add items to cart)
-        document.querySelectorAll('.reorder-btn').forEach(btn => {
-             btn.addEventListener('click', function() {
-                 const orderId = parseInt(this.getAttribute('data-order-id'));
-                 const order = orders.find(o => o.id === orderId);
-                 if(order) {
-                     // Check if different restaurant
-                     const currentCart = Cart.getCart();
-                     if (currentCart.length > 0 && currentCart[0].restaurantId !== order.restaurantId) {
-                         if(!confirm('This will clear your current cart. Proceed?')) return;
-                         Cart.clearCart();
-                     }
-                     // Add items
-                     order.items.forEach(item => Cart.forceAddToCart(item, order.restaurantId));
-                     Cart.showToast('Items added to cart');
-                     setTimeout(() => window.location.href = 'cart.html', 1000);
-                 }
-             });
-        });
-
-    }
+    loadOrderHistory();
 
     // Handle Edit Profile
-    document.getElementById('profile-form').addEventListener('submit', (e) => {
+    document.getElementById('profile-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const newName = document.getElementById('edit-name').value;
         const newPhone = document.getElementById('edit-phone').value;
@@ -166,7 +216,7 @@ function initProfilePage() {
             image: newImage
         };
 
-        const res = Auth.updateProfile(updateData);
+        const res = await Auth.updateProfile(updateData);
         if (res.success) {
             Cart.showToast('Profile updated!');
             document.getElementById('profile-name-display').textContent = newName;
@@ -191,15 +241,6 @@ function initHomePage() {
         }
 
         list.forEach(r => {
-            // Calculate Average Cost for One based on Menu
-            let avgCost = 0;
-            if (r.menu && r.menu.length > 0) {
-                const total = r.menu.reduce((sum, item) => sum + item.price, 0);
-                avgCost = Math.round(total / r.menu.length);
-            } else {
-                avgCost = 150; // Fallback
-            }
-
             const card = document.createElement('div');
             card.className = 'col-md-6 col-lg-3 mb-4';
             card.innerHTML = `
@@ -215,10 +256,9 @@ function initHomePage() {
                             <h5 class="card-title mb-0 fw-bold text-truncate">${r.name}</h5>
                             <span class="badge bg-success"><i class="bi bi-star-fill"></i> ${r.rating}</span>
                         </div>
-                        <p class="text-muted small text-truncate mb-0">${r.cuisine}</p>
-                        <div class="d-flex justify-content-between align-items-center mt-2">
-                             <p class="text-muted small mb-0">${r.location}</p>
-                             <p class="text-dark small fw-bold mb-0">₹${avgCost} for one</p>
+                        <p class="text-muted small text-truncate mb-2">${r.cuisine}</p>
+                        <div class="d-flex justify-content-between align-items-center mt-auto">
+                             <p class="text-muted small mb-0"><i class="bi bi-geo-alt-fill"></i> ${r.location}</p>
                         </div>
                     </div>
                     <a href="restaurant.html?id=${r.id}" class="stretched-link"></a>
@@ -346,60 +386,74 @@ function initRestaurantPage() {
 
     renderMenu();
 
-    // Floating Cart Logic
-    const floatingCartHtml = `
-        <div id="floating-cart" class="floating-cart-bar hidden">
-            <div class="d-flex flex-column">
-                <span class="fw-bold" id="float-count">0 ITEMS</span>
-                <small class="text-white-50" id="float-total">₹0</small>
-            </div>
-            <div class="d-flex align-items-center fw-bold">
-                View Cart <i class="bi bi-arrow-right ms-2"></i>
-            </div>
-        </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', floatingCartHtml);
-    const floatBar = document.getElementById('floating-cart');
-    
-    // Redirect on click
-    floatBar.addEventListener('click', () => window.location.href = 'cart.html');
+    // --- Customer Love Marquee ---
+    (async function renderReviews() {
+        try {
+            const reviews = await ApiClient.getRestaurantReviews(restId);
+            if (!reviews || reviews.length === 0) return;
 
-    function updateFloatingCart() {
-        const cart = Cart.getCart();
-        // Only show if cart has items from THIS restaurant
-        if (cart.length > 0 && cart[0].restaurantId === restaurant.id) {
-            const count = cart.reduce((sum, i) => sum + i.quantity, 0);
-            const total = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+            const reviewHtml = reviews.map(r => `
+                <div class="d-inline-block bg-white border border-brand rounded p-3 me-3 shadow-sm align-top" style="min-width: 250px; max-width: 300px; white-space: normal;">
+                    <div class="d-flex align-items-center mb-1">
+                        <span class="text-warning small me-2">${'★'.repeat(r.rating)}</span>
+                        <span class="fw-bold small text-dark">- ${r.user}</span>
+                    </div>
+                    <p class="small text-muted mb-0 fst-italic">"${r.feedback}"</p>
+                </div>
+            `).join('');
+
+            // Marquee Container
+            const marqueeSection = document.createElement('div');
+            marqueeSection.className = 'w-100 py-4 bg-light border-bottom mb-5 overflow-hidden';
+            marqueeSection.innerHTML = `
+                <div class="container mb-3">
+                    <h5 class="fw-bold text-brand"><i class="bi bi-heart-fill me-2"></i>Customer Love</h5>
+                </div>
+                <!-- Inline CSS Marquee -->
+                <div style="width: 100%; overflow: hidden; position: relative;">
+                    <style>
+                        @keyframes marquee {
+                            0% { transform: translateX(0); }
+                            100% { transform: translateX(-50%); }
+                        }
+                        .marquee-track {
+                            display: flex;
+                            width: max-content;
+                            animation: marquee 40s linear infinite;
+                        }
+                        .marquee-track:hover { animation-play-state: paused; }
+                    </style>
+                    <div class="marquee-track px-2">
+                        ${reviewHtml}
+                        <!-- Duplicate for seamless loop -->
+                        ${reviewHtml}
+                    </div>
+                </div>
+            `;
             
-            document.getElementById('float-count').textContent = `${count} ITEM${count > 1 ? 'S' : ''}`;
-            document.getElementById('float-total').textContent = `₹${total} plus taxes`;
-            
-            floatBar.classList.remove('hidden');
-        } else {
-            floatBar.classList.add('hidden');
+            // Insert BEFORE the main container (move up DOM tree)
+            const menuContainer = document.getElementById('menu-container');
+            const mainContainer = menuContainer.closest('.container');
+            if(mainContainer) {
+                mainContainer.parentNode.insertBefore(marqueeSection, mainContainer);
+            } else {
+                 // Fallback
+                 menuContainer.parentNode.insertBefore(marqueeSection, menuContainer);
+            }
+
+        } catch (e) {
+            console.error('Failed to load reviews:', e);
         }
+    })();
+
+    // Veg Filter Handler
+    if (vegFilter) {
+        vegFilter.addEventListener('change', (e) => {
+            renderMenu(e.target.checked);
+        });
     }
 
-    // Hook into global Cart changes? 
-    // Since Cart.saveCart calls updateBadge, we can't easily hook unless we modify Cart.js 
-    // OR we just assume actions on this page trigger it.
-    // Let's modify the btn listeners to call this.
-    
-    // Initial check
-    updateFloatingCart();
-
-    // Re-bind listeners to update Floating Cart
-    // (We replaced listeners in renderMenu, so we need to ensure updateFloatingCart is called)
-    // Actually, we can just observe localStorage? No, simpler to wrap the existing addToCart
-    const originalAddToCart = Cart.addToCart.bind(Cart);
-    // This is risky to monkey-patch. Better to just call it on click.
-
-    document.getElementById('menu-container').addEventListener('click', (e) => {
-        if(e.target.classList.contains('add-btn')) {
-            // Wait slightly for Cart to update
-            setTimeout(updateFloatingCart, 100);
-        }
-    });
+    // Floating Cart Removed as per user request
 }
 
 /* --- Cart Page Logic --- */
@@ -499,13 +553,11 @@ function initCartPage() {
     });
 
     // Promo Handler
-    applyPromoBtn.addEventListener('click', () => {
+    applyPromoBtn.addEventListener('click', async () => {
         const code = promoInput.value.trim().toUpperCase();
-        const totals = Cart.getTotals(null); // Check totals for min requirements
         
-        // Validate promo first
-        // Validate promo first
-        const validation = Cart.validatePromo(code, Cart.getCart());
+        // Validate promo first via backend
+        const validation = await Cart.validatePromo(code, Cart.getCart());
         if (!validation.valid) {
             Cart.showToast(validation.message, 'error');
             currentPromo = null;
@@ -513,33 +565,105 @@ function initCartPage() {
             return;
         }
 
-        // Apply
-        currentPromo = code;
+        // Apply returned promo object
+        currentPromo = validation.promo;
         const newTotals = Cart.getTotals(currentPromo);
         if(newTotals.discount > 0) {
              Cart.showToast('Promo code applied!');
         } else {
-             Cart.showToast('Promo conditions not met');
+             // This shouldn't happen if server validated it, but for safety:
+             Cart.showToast('Promo conditions not met for this cart total');
              currentPromo = null;
         }
         updateSummary();
     });
 
     // Checkout
-    // Checkout
-    document.getElementById('checkout-btn').addEventListener('click', () => {
+    document.getElementById('checkout-btn').addEventListener('click', async () => {
         if (!Auth.isAuthenticated()) {
             Cart.showToast('Please login to place order');
             setTimeout(() => window.location.href = 'login.html', 1500);
             return;
         }
         
-        // Cart.checkout handles saving logic
-        if (Cart.checkout(currentPromo)) {
+        // Cart.checkout handles backend saving logic
+        const res = await Cart.checkout(currentPromo);
+        if (res.success) {
             Cart.showToast('Order Placed! Redirecting...');
-            setTimeout(() => window.location.href = 'index.html', 2000); // Redirect to home or profile later
+            setTimeout(() => window.location.href = 'profile.html', 2000); // Redirect to profile to see orders
         } else {
-             Cart.showToast('Checkout failed. Please try again.', 'error');
+             Cart.showToast(res.message || 'Checkout failed. Please try again.', 'error');
+        }
+    });
+
+    // View Coupons Logic
+    const viewCouponsBtn = document.getElementById('view-coupons-btn');
+    const modalCouponsList = document.getElementById('modal-coupons-list');
+    const couponModal = new bootstrap.Modal(document.getElementById('couponModal'));
+
+    viewCouponsBtn?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        modalCouponsList.innerHTML = '<div class="text-center p-4"><div class="spinner-border text-brand" role="status"></div></div>';
+        couponModal.show();
+
+        try {
+            const offers = await ApiClient.getOffers();
+            const cart = Cart.getCart();
+            const subtotal = Cart.getTotals().itemTotal;
+            const restaurantId = cart.length > 0 ? cart[0].restaurantId : null;
+
+            modalCouponsList.innerHTML = '';
+            
+            if (offers.length === 0) {
+                modalCouponsList.innerHTML = '<div class="text-center p-4">No coupons available right now.</div>';
+                return;
+            }
+
+            offers.forEach(offer => {
+                // Check eligibility for UI (visual indicator only, server validates again)
+                const isRestMatch = !offer.restaurantId || offer.restaurantId === restaurantId;
+                const isMinMatch = !offer.minOrder || subtotal >= offer.minOrder;
+                const isEligible = isRestMatch && isMinMatch;
+
+                const col = document.createElement('div');
+                col.className = 'col-md-6 mb-3';
+                col.innerHTML = `
+                    <div class="card border h-100 ${!isEligible ? 'opacity-75 bg-light' : ''}">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <img src="${offer.image}" alt="" style="width: 30px; height: 30px;" class="me-2">
+                                <span class="fw-bold text-uppercase small">${offer.code}</span>
+                            </div>
+                            <h6 class="fw-bold mb-1 small">${offer.title}</h6>
+                            <p class="text-muted mb-3" style="font-size: 0.75rem;">${offer.description}</p>
+                            ${!isEligible ? 
+                                `<small class="text-danger d-block mb-2" style="font-size: 0.7rem;">
+                                    ${!isRestMatch ? 'Not valid for this restaurant' : `Min order value: ₹${offer.minOrder}`}
+                                </small>` : ''
+                            }
+                            <button class="btn btn-sm ${isEligible ? 'btn-outline-brand' : 'btn-secondary disabled'} w-100 select-coupon-btn" 
+                                data-code="${offer.code}" ${!isEligible ? 'disabled' : ''}>
+                                APPLY COUPON
+                            </button>
+                        </div>
+                    </div>
+                `;
+                modalCouponsList.appendChild(col);
+            });
+
+            // Select Coupon Listener
+            modalCouponsList.querySelectorAll('.select-coupon-btn').forEach(btn => {
+                btn.addEventListener('click', async function() {
+                    const code = this.dataset.code;
+                    promoInput.value = code;
+                    couponModal.hide();
+                    applyPromoBtn.click(); // Trigger the existing apply logic
+                });
+            });
+
+        } catch (error) {
+            console.error('Failed to fetch coupons for modal:', error);
+            modalCouponsList.innerHTML = '<div class="alert alert-danger mx-2">Error loading coupons.</div>';
         }
     });
 
@@ -569,32 +693,58 @@ function initLoginPage() {
         document.getElementById('login-box').classList.remove('d-none');
     });
 
+    // Role Selection Toggle
+    const roleSelectors = document.getElementsByName('role');
+    const restaurantGroup = document.getElementById('restaurant-name-group');
+    
+    roleSelectors.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.value === 'owner') {
+                restaurantGroup.classList.remove('d-none');
+            } else {
+                restaurantGroup.classList.add('d-none');
+            }
+        });
+    });
+
+    // Helper for redirection
+    const redirectUser = (user) => {
+        if (user.role === 'owner') {
+            window.location.href = 'owner-dashboard.html';
+        } else {
+            window.location.href = 'index.html';
+        }
+    };
+
     // Handle Login
-    loginForm.addEventListener('submit', (e) => {
+    loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('login-email').value;
         const pass = document.getElementById('login-pass').value;
-        const res = Auth.login(email, pass);
+        const res = await Auth.login(email, pass);
         
         if (res.success) {
             Cart.showToast('Login successful! Redirecting...');
-            setTimeout(() => window.location.href = 'index.html', 1000);
+            setTimeout(() => redirectUser(res.user), 1000);
         } else {
             Cart.showToast(res.message, 'error');
         }
     });
 
     // Handle Register
-    registerForm.addEventListener('submit', (e) => {
+    registerForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const name = document.getElementById('reg-name').value;
         const email = document.getElementById('reg-email').value;
         const pass = document.getElementById('reg-pass').value;
+        const role = document.querySelector('input[name="role"]:checked').value;
+        const restaurantName = document.getElementById('reg-restaurant').value;
+        const restaurantLocation = document.getElementById('reg-location').value;
         
-        const res = Auth.register(name, email, pass);
+        const res = await Auth.register(name, email, pass, role, restaurantName, restaurantLocation);
         if (res.success) {
             Cart.showToast('Registration successful! Redirecting...');
-            setTimeout(() => window.location.href = 'index.html', 1000);
+            setTimeout(() => redirectUser(res.user), 1000);
         } else {
             Cart.showToast(res.message, 'error');
         }
@@ -792,12 +942,6 @@ function initNavigationHandlers() {
                 handleSearchClick();
             });
         }
-        if (link.textContent.includes('Offers')) {
-             link.addEventListener('click', (e) => {
-                e.preventDefault();
-                showOffersModal();
-            });
-        }
     });
 }
 
@@ -814,46 +958,6 @@ function handleSearchClick() {
     }
 }
 
-function showOffersModal() {
-    const codes = Object.entries(Cart.PROMOS).map(([code, details]) => {
-        const desc = details.type === 'percent' ? `${details.value}% OFF (Max ₹${details.max})` : `Flat ₹${details.value} OFF (Min Order ₹${details.min})`;
-        const restLimit = details.restaurantId ? `<br><small class="text-warning">On specific restaurant only</small>` : '';
-        return `
-            <div class="col-md-6 mb-3">
-                <div class="border rounded p-3 text-center position-relative bg-light h-100 dashed-border">
-                    <h5 class="fw-bold text-success mb-1">${code}</h5>
-                    <p class="small text-muted mb-2">${desc}${restLimit}</p>
-                    <button class="btn btn-sm btn-outline-secondary copy-btn" data-code="${code}">Copy Code</button>
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    const body = `
-        <div class="row">
-            ${codes}
-        </div>
-        <div class="mt-3 text-center small text-muted">
-            Apply these codes at checkout!
-        </div>
-    `;
-
-    showModal('Available Offers', body);
-
-    document.querySelectorAll('.copy-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const code = this.getAttribute('data-code');
-            navigator.clipboard.writeText(code);
-            const originalText = this.textContent;
-            this.textContent = 'Copied!';
-            this.className = 'btn btn-sm btn-success copy-btn text-white';
-            setTimeout(() => {
-                this.textContent = originalText;
-                this.className = 'btn btn-sm btn-outline-secondary copy-btn';
-            }, 1500);
-        });
-    });
-}
 
 // Enhance Home Page Init to handle hash for search
 if (typeof initHomePage !== 'undefined') {
@@ -870,4 +974,329 @@ if (typeof initHomePage !== 'undefined') {
             }, 500);
         }
     };
+}
+
+function showOrderTrackingModal(order) {
+    if (!order.statusHistory) {
+        showModal('Order Tracking', 'No tracking history available for this order.');
+        return;
+    }
+
+    const timelineHtml = order.statusHistory.map((step, index) => {
+        const date = new Date(step.timestamp).toLocaleDateString();
+        const time = new Date(step.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const isActive = index === order.statusHistory.length - 1;
+        
+        return `
+            <div class="d-flex position-relative pb-4">
+                ${index < order.statusHistory.length - 1 ? '<div class="position-absolute border-start border-2 h-100" style="left: 11px; top: 15px; border-color: #dee2e6 !important;"></div>' : ''}
+                <div class="rounded-circle ${isActive ? 'bg-success' : 'bg-secondary'} mt-1" style="width: 24px; height: 24px; z-index: 1; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-check2 text-white small"></i>
+                </div>
+                <div class="ms-3">
+                    <h6 class="mb-0 fw-bold ${isActive ? 'text-success' : ''}">${step.status.replace(/_/g, ' ')}</h6>
+                    <small class="text-muted d-block">${date} at ${time}</small>
+                    <p class="small mb-0 mt-1">${step.message}</p>
+                </div>
+            </div>
+        `;
+    }).reverse().join('');
+
+    const body = `
+        <div class="order-tracking-timeline py-2">
+            ${timelineHtml}
+        </div>
+        <div class="mt-3 p-3 bg-light rounded-3">
+            <div class="d-flex justify-content-between mb-1">
+                <span class="small text-muted">Order ID</span>
+                <span class="small fw-bold">#${order.id}</span>
+            </div>
+            <div class="d-flex justify-content-between">
+                <span class="small text-muted">Email</span>
+                <span class="small fw-bold text-truncate ms-2">${order.userEmail}</span>
+            </div>
+        </div>
+    `;
+
+    showModal('Order Status Tracking', body);
+}
+
+/* --- Navigation Helpers --- */
+function updateActiveNavItem() {
+    const pageId = document.body.id;
+    const navLinks = document.querySelectorAll('.nav-link');
+    
+    navLinks.forEach(link => {
+        const href = link.getAttribute('href');
+        if (href === 'index.html' && pageId === 'page-home') link.classList.add('active');
+        if (href === 'offers.html' && pageId === 'page-offers') link.classList.add('active');
+        if (href === 'profile.html' && pageId === 'page-profile') link.classList.add('active');
+    });
+}
+
+function initNavigationHandlers() {
+    // Placeholder for search/offers redirection if needed
+    console.log('Navigation handlers initialized');
+}
+
+function initTheme() {
+    const themeToggle = document.getElementById('theme-toggle');
+    if (!themeToggle) return;
+    
+    // Check for saved theme
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-theme');
+        const icon = themeToggle.querySelector('i');
+        if (icon) icon.classList.replace('bi-moon-stars-fill', 'bi-sun-fill');
+        else if (themeToggle.querySelector('.bi-moon-stars')) themeToggle.querySelector('.bi-moon-stars').classList.replace('bi-moon-stars', 'bi-sun');
+    }
+
+    themeToggle.addEventListener('click', () => {
+        document.body.classList.toggle('dark-theme');
+        const isDark = document.body.classList.contains('dark-theme');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        
+        const icon = themeToggle.querySelector('i');
+        if (icon) {
+            if (isDark) {
+                if (icon.classList.contains('bi-moon-stars-fill')) icon.classList.replace('bi-moon-stars-fill', 'bi-sun-fill');
+                else if (icon.classList.contains('bi-moon-stars')) icon.classList.replace('bi-moon-stars', 'bi-sun');
+            } else {
+                if (icon.classList.contains('bi-sun-fill')) icon.classList.replace('bi-sun-fill', 'bi-moon-stars-fill');
+                else if (icon.classList.contains('bi-sun')) icon.classList.replace('bi-sun', 'bi-moon-stars');
+            }
+        }
+    });
+}
+
+/**
+ * --- Global Helper: Status Badge ---
+ */
+function getStatusBadge(status) {
+    let color = 'secondary';
+    let display = status || 'PENDING';
+    switch(status) {
+        case 'PENDING': color = 'warning'; display = 'Pending'; break;
+        case 'CONFIRMED': color = 'info'; display = 'Confirmed'; break;
+        case 'PREPARING': color = 'primary'; display = 'Preparing'; break;
+        case 'READY': color = 'info'; display = 'Ready'; break;
+        case 'OUT_FOR_DELIVERY': color = 'warning'; display = 'Out for Delivery'; break;
+        case 'DELIVERED': color = 'success'; display = 'Delivered'; break;
+        case 'REJECTED': color = 'danger'; display = 'Rejected'; break;
+    }
+    return `<span class="badge bg-${color}-subtle text-${color} border border-${color}-subtle rounded-pill small">${display}</span>`;
+}
+
+/**
+ * --- Global: Load Order History ---
+ * Made global to be accessible by Socket.IO
+ */
+async function loadOrderHistory() {
+    const user = Auth.getCurrentUser();
+    const historyContainer = document.getElementById('order-history-list');
+    
+    if (!user || !historyContainer) return; // Not on profile page or not logged in
+
+    try {
+        const orders = await ApiClient.getOrderHistory(user.email);
+        
+        if (orders.length > 0) {
+            historyContainer.innerHTML = '';
+            orders.forEach(order => {
+                const date = new Date(order.date).toLocaleDateString();
+                const time = new Date(order.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                // Calculate Item text
+                const itemText = order.items.map(i => `${i.quantity}x ${i.name}`).join(', ');
+                 // Find Restaurant Name safely
+                const r = DB.restaurants.find(res => res.id === order.restaurantId);
+                const rName = r ? r.name : 'Restaurant';
+
+                const card = document.createElement('div');
+                card.className = 'card mb-3 border-0 shadow-sm';
+                
+                // Action Buttons Logic
+                let actionBtns = `
+                    <button class="btn btn-sm btn-outline-secondary track-btn" data-order-id="${order.id}">Track</button>
+                    <button class="btn btn-sm btn-outline-brand reorder-btn" data-order-id="${order.id}">Reorder</button>
+                `;
+
+                if (order.status === 'DELIVERED' && !order.isRated) {
+                    actionBtns = `
+                        <button class="btn btn-sm btn-warning text-white rate-btn" data-order-id="${order.id}" data-rest-name="${rName}"><i class="bi bi-star-fill me-1"></i>Rate</button>
+                        <button class="btn btn-sm btn-outline-brand reorder-btn" data-order-id="${order.id}">Reorder</button>
+                    `;
+                } else if (order.isRated) {
+                     actionBtns = `
+                        <span class="badge bg-light text-warning border align-self-center me-2"><i class="bi bi-star-fill"></i> ${order.rating}</span>
+                        <button class="btn btn-sm btn-outline-brand reorder-btn" data-order-id="${order.id}">Reorder</button>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <h6 class="fw-bold mb-0 text-dark">${rName}</h6>
+                                <small class="text-muted">${date} at ${time}</small>
+                            </div>
+                            ${getStatusBadge(order.status)}
+                        </div>
+                        <p class="small text-muted mb-2 text-truncate">${itemText}</p>
+                        <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-2">
+                            <span class="fw-bold text-dark">₹${order.total}</span>
+                            <div class="btn-group">
+                                ${actionBtns}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                historyContainer.appendChild(card);
+            });
+
+            // Event Listeners for Dynamic Buttons
+            
+            // Rate Logic
+            document.querySelectorAll('.rate-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const oid = this.dataset.orderId;
+                    const rName = this.dataset.restName;
+                    showRatingModal(oid, rName);
+                });
+            });
+
+            // Track Logic
+            document.querySelectorAll('.track-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const orderId = this.getAttribute('data-order-id');
+                    const order = orders.find(o => o.id == orderId);
+                    if (order) showOrderTrackingModal(order);
+                });
+            });
+
+            // Reorder Logic (Simple: Add items to cart)
+            document.querySelectorAll('.reorder-btn').forEach(btn => {
+                 btn.addEventListener('click', function() {
+                         const orderId = parseInt(this.getAttribute('data-order-id'));
+                         const order = orders.find(o => o.id === orderId);
+                         if(order) {
+                             // Check if different restaurant
+                             const currentCart = Cart.getCart();
+                             if (currentCart.length > 0 && currentCart[0].restaurantId !== order.restaurantId) {
+                                 if(!confirm('This will clear your current cart. Proceed?')) return;
+                                 Cart.clearCart();
+                             }
+                             // Add items
+                             order.items.forEach(item => Cart.forceAddToCart(item, order.restaurantId));
+                             Cart.showToast('Items added to cart');
+                             setTimeout(() => window.location.href = 'cart.html', 1000);
+                         }
+                     });
+                });
+        } else {
+            historyContainer.innerHTML = '<div class="text-center p-4 text-muted">No orders found yet.</div>';
+        }
+    } catch (error) {
+        console.error('Failed to load orders:', error);
+        historyContainer.innerHTML = '<div class="alert alert-danger">Failed to load order history.</div>';
+    }
+}
+
+
+
+function initFooterPopups() {
+    // Placeholder for footer links
+}
+
+/**
+ * --- Global: Rating Modal ---
+ */
+function showRatingModal(orderId, restaurantName) {
+    // Remove existing if any
+    const existing = document.getElementById('rating-modal');
+    if (existing) existing.remove();
+
+    const modalHtml = `
+    <div class="modal fade" id="rating-modal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content text-center">
+                <div class="modal-header border-0 pb-0 justify-content-end">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pb-4">
+                    <h5 class="fw-bold mb-3">Rate your food from<br><span class="text-brand">${restaurantName}</span></h5>
+                    <div class="rating-stars mb-4 fs-1 text-muted" style="cursor: pointer;">
+                        <i class="bi bi-star" data-val="1"></i>
+                        <i class="bi bi-star" data-val="2"></i>
+                        <i class="bi bi-star" data-val="3"></i>
+                        <i class="bi bi-star" data-val="4"></i>
+                        <i class="bi bi-star" data-val="5"></i>
+                    </div>
+                    <textarea class="form-control mb-3" placeholder="Tell us more... (Optional)" rows="2"></textarea>
+                    <button class="btn btn-brand w-100 disabled" id="submit-rating-btn">Submit Rating</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    const modalEl = document.getElementById('rating-modal');
+    const modal = new bootstrap.Modal(modalEl);
+    const submitBtn = document.getElementById('submit-rating-btn');
+    const stars = modalEl.querySelectorAll('.bi-star, .bi-star-fill');
+    let selectedRating = 0;
+
+    // Star Click Logic
+    stars.forEach(star => {
+        star.addEventListener('mouseover', function() {
+            if(selectedRating) return; 
+            const val = parseInt(this.dataset.val);
+            highlightStars(val);
+        });
+        
+        star.addEventListener('mouseout', function() {
+             if(selectedRating) highlightStars(selectedRating);
+             else highlightStars(0);
+        });
+
+        star.addEventListener('click', function() {
+            selectedRating = parseInt(this.dataset.val);
+            highlightStars(selectedRating);
+            submitBtn.classList.remove('disabled');
+        });
+    });
+
+    function highlightStars(count) {
+        stars.forEach(s => {
+            const val = parseInt(s.dataset.val);
+            if (val <= count) {
+                s.classList.remove('bi-star');
+                s.classList.add('bi-star-fill', 'text-warning');
+            } else {
+                s.classList.remove('bi-star-fill', 'text-warning');
+                s.classList.add('bi-star');
+            }
+        });
+    }
+
+    // Submit Logic
+    submitBtn.addEventListener('click', async () => {
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        const feedback = modalEl.querySelector('textarea').value;
+        try {
+            const res = await ApiClient.rateOrder(orderId, selectedRating, feedback);
+            modal.hide();
+            Cart.showToast('Thanks for your feedback!');
+            // Refresh order history if on profile page
+            if (typeof loadOrderHistory === 'function') loadOrderHistory();
+            // Refresh home page if active to show new rating
+            if (document.body.id === 'page-home') initHomePage();
+        } catch (error) {
+            console.error(error);
+            Cart.showToast(error.message, 'error');
+            submitBtn.innerText = 'Submit Rating';
+        }
+    });
+
+    modal.show();
 }

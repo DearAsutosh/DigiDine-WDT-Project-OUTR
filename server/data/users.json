@@ -1,0 +1,66 @@
+[
+  {
+    "id": 1766342735698,
+    "name": "Asutosh Sahoo",
+    "email": "kanhaasu2005@gmail.com",
+    "password": "hui",
+    "createdAt": "2025-12-21T18:45:35.698Z",
+    "phone": "+916370707232",
+    "address": "Sahaspur\nPO-Nalipur",
+    "updatedAt": "2025-12-21T18:49:47.067Z"
+  },
+  {
+    "id": 1766342735999,
+    "name": "Spice Owner",
+    "email": "owner@spice.com",
+    "password": "owner",
+    "createdAt": "2025-12-21T19:00:00.000Z",
+    "role": "owner",
+    "restaurantId": 1
+  },
+  {
+    "id": 1766346553214,
+    "name": "asutosh sahoo",
+    "email": "k@mi.co",
+    "password": "hui",
+    "role": "customer",
+    "restaurantId": null,
+    "createdAt": "2025-12-21T19:49:13.214Z"
+  },
+  {
+    "id": 1766346976855,
+    "name": "asutosh sahoo",
+    "email": "k@mi.com",
+    "password": "hui",
+    "role": "customer",
+    "restaurantId": null,
+    "createdAt": "2025-12-21T19:56:16.855Z"
+  },
+  {
+    "id": 1766347503024,
+    "name": "asutosh sahoo",
+    "email": "k1@mi.com",
+    "password": "hui",
+    "role": "owner",
+    "restaurantId": 1766347503023,
+    "createdAt": "2025-12-21T20:05:03.024Z"
+  },
+  {
+    "id": 1766373298762,
+    "name": "gulu",
+    "email": "gulu@me.com",
+    "password": "123",
+    "role": "customer",
+    "restaurantId": null,
+    "createdAt": "2025-12-22T03:14:58.762Z"
+  },
+  {
+    "id": 1766373380607,
+    "name": "asutosh sahoo",
+    "email": "hui@me.com",
+    "password": "hui",
+    "role": "owner",
+    "restaurantId": 1766373380607,
+    "createdAt": "2025-12-22T03:16:20.607Z"
+  }
+]

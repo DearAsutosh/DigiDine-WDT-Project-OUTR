@@ -36,7 +36,7 @@
                         <a class="nav-link" href="index.html"><i class="bi bi-search me-1"></i> Search</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#"><i class="bi bi-percent me-1"></i> Offers</a>
+                        <a class="nav-link" href="offers.html"><i class="bi bi-percent me-1"></i> Offers</a>
                     </li>
                     <li class="nav-item">
                          <button class="btn nav-link" id="theme-toggle" aria-label="Toggle Dark Mode"><i class="bi bi-moon-stars-fill"></i></button>
@@ -113,11 +113,14 @@
 
                     <!-- Promo Code -->
                     <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                             <small class="text-muted fw-bold">PROMO CODE</small>
+                             <a href="#" class="text-brand small fw-bold text-decoration-none" id="view-coupons-btn">VIEW COUPONS</a>
+                        </div>
                         <div class="input-group mb-1">
                             <input type="text" class="form-control" id="promo-code" placeholder="Enter Promo (e.g. FLAT100)">
                             <button class="btn btn-secondary" type="button" id="apply-promo">APPLY</button>
                         </div>
-                        <small class="text-muted fst-italic">Try: SWIGGY50, WELCOME50, FLAT100</small>
                     </div>
 
                     <button id="checkout-btn" class="btn btn-brand w-100 py-2 shadow-sm fw-bold">PLACE ORDER</button>
@@ -176,11 +179,30 @@
         </div>
     </footer>
 
+    <!-- Coupon Selection Modal -->
+    <div class="modal fade" id="couponModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">Available Coupons</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="modal-coupons-list" class="row p-2">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Container -->
     <div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;"></div>
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="js/api-client.js"></script>
     <script src="js/data.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/cart.js"></script>

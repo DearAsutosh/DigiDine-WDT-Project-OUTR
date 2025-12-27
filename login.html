@@ -108,6 +108,26 @@
                                 <input type="email" class="form-control" id="reg-email" placeholder="name@example.com" required>
                                 <label for="reg-email">Email address</label>
                             </div>
+                            <div class="d-flex gap-3 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="role" id="role-customer" value="customer" checked>
+                                    <label class="form-check-label" for="role-customer">Customer</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="role" id="role-owner" value="owner">
+                                    <label class="form-check-label" for="role-owner">Restaurant Owner</label>
+                                </div>
+                            </div>
+                            <div id="restaurant-name-group" class="d-none">
+                                <div class="form-floating mb-3">
+                                    <input type="text" class="form-control" id="reg-restaurant" placeholder="My Cafe">
+                                    <label for="reg-restaurant">Restaurant Name</label>
+                                </div>
+                                <div class="form-floating mb-3">
+                                    <input type="text" class="form-control" id="reg-location" placeholder="Patia">
+                                    <label for="reg-location">Restaurant Location (e.g. Patia)</label>
+                                </div>
+                            </div>
                             <div class="input-group mb-3">
                                 <div class="form-floating">
                                     <input type="password" class="form-control" id="reg-pass" placeholder="Password" required>
@@ -134,6 +154,8 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="js/api-client.js"></script>
     <script src="js/data.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/cart.js"></script>

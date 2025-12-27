@@ -16,34 +16,39 @@ const Auth = {
     },
 
     // Signup
-    register: function(name, email, password) {
-        const users = this.getUsers();
-        if (users.find(u => u.email === email)) {
-            return { success: false, message: 'Email already registered' };
-        }
-        const newUser = { name, email, password };
-        users.push(newUser);
-        localStorage.setItem(this.USERS_KEY, JSON.stringify(users));
-        // Auto login after signup
-        this.login(email, password);
-        return { success: true, message: 'Registration successful' };
-    },
-
-    // Login
-    login: function(email, password) {
-        const users = this.getUsers();
-        const user = users.find(u => u.email === email && u.password === password);
-        if (user) {
-            // Remove password from session storage for security
-            const { password, ...safeUser } = user;
-            localStorage.setItem(this.SESSION_KEY, JSON.stringify(safeUser));
+    register: async function(name, email, password, role = 'customer', restaurantName = '', restaurantLocation = '') {
+        try {
+            const response = await ApiClient.register(name, email, password, role, restaurantName, restaurantLocation);
+            // Save session
+            localStorage.setItem(this.SESSION_KEY, JSON.stringify(response.user));
+            // Store token if provided
+            if (response.token) localStorage.setItem('auth_token', response.token);
             
             // Set flag for one-time welcome greeting
             sessionStorage.setItem('welcome_user', 'true');
             
-            return { success: true, message: 'Login successful', user: safeUser };
+            return { success: true, message: response.message, user: response.user };
+        } catch (error) {
+            return { success: false, message: error.message };
         }
-        return { success: false, message: 'Invalid credentials' };
+    },
+
+    // Login
+    login: async function(email, password) {
+        try {
+            const response = await ApiClient.login(email, password);
+            // Save session
+            localStorage.setItem(this.SESSION_KEY, JSON.stringify(response.user));
+            // Store token if provided
+            if (response.token) localStorage.setItem('auth_token', response.token);
+            
+            // Set flag for one-time welcome greeting
+            sessionStorage.setItem('welcome_user', 'true');
+            
+            return { success: true, message: response.message, user: response.user };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
     },
 
     // Logout
@@ -52,9 +57,28 @@ const Auth = {
             Cart.clearCart();
         }
         localStorage.removeItem(this.SESSION_KEY);
+        localStorage.removeItem('auth_token');
         // Clean up welcome flag just in case
         sessionStorage.removeItem('welcome_user');
         window.location.href = 'login.html';
+    },
+
+    // Delete Account
+    deleteAccount: async function() {
+        const user = this.getCurrentUser();
+        if (!user) return;
+
+        try {
+            await ApiClient.deleteProfile(user.email);
+            localStorage.removeItem(this.SESSION_KEY);
+            localStorage.removeItem('auth_token');
+            // Clean up welcome flag just in case
+            sessionStorage.removeItem('welcome_user');
+            window.location.href = 'index.html';
+            return { success: true };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
     },
 
     // Check if user is logged in
@@ -62,26 +86,53 @@ const Auth = {
         return !!this.getCurrentUser();
     },
 
+    // Route Guard
+    checkAccess: function() {
+        const user = this.getCurrentUser();
+        const pageId = document.body.id;
+        const customerPages = ['page-home', 'page-restaurant', 'page-cart', 'page-offers', 'page-profile'];
+        const ownerPages = ['page-owner-dashboard', 'page-owner-profile'];
+
+        if (!user) {
+            // Guest access to customer pages is allowed (except profile), 
+            // but owner pages require login
+            if (ownerPages.includes(pageId)) {
+                window.location.href = 'login.html';
+            }
+            return;
+        }
+
+        if (user.role === 'owner' || user.role === 'restaurant_owner') {
+            // Owner trying to access customer pages -> redirect to dashboard
+            if (customerPages.includes(pageId)) {
+                window.location.href = 'owner-dashboard.html';
+            }
+        } else if (user.role === 'customer') {
+            // Customer trying to access owner pages -> redirect to home
+            if (ownerPages.includes(pageId)) {
+                window.location.href = 'index.html';
+            }
+        }
+    },
+
     // Update Profile
-    updateProfile: function(updatedData) {
-        let users = this.getUsers();
-        let currentUser = this.getCurrentUser();
-        
+    updateProfile: async function(updatedData) {
+        const currentUser = this.getCurrentUser();
         if (!currentUser) return { success: false, message: 'Not logged in' };
 
-        // Update in list
-        const userIndex = users.findIndex(u => u.email === currentUser.email);
-        if (userIndex > -1) {
-            users[userIndex] = { ...users[userIndex], ...updatedData };
-            localStorage.setItem(this.USERS_KEY, JSON.stringify(users));
+        try {
+            const response = await ApiClient.updateProfile({ 
+                ...updatedData, 
+                email: currentUser.email // Backend needs email to identify user
+            });
             
             // Update session
-            const safeUser = { ...currentUser, ...updatedData };
-            localStorage.setItem(this.SESSION_KEY, JSON.stringify(safeUser));
+            localStorage.setItem(this.SESSION_KEY, JSON.stringify(response.user));
             
-            return { success: true, message: 'Updated' };
+            return { success: true, message: response.message, user: response.user };
+        } catch (error) {
+            return { success: false, message: error.message };
         }
-        return { success: false, message: 'User not found' };
     },
 
     // Update UI elements based on auth state
@@ -98,7 +149,8 @@ const Auth = {
                      
                      if (showWelcome) {
                          // Case 1: Just Logged In -> Show Greeting, then delay switch
-                         navUserDisplay.innerHTML = `<a href="profile.html" id="profile-link-content" class="nav-link text-decoration-none d-flex align-items-center">Hello, ${user.name}</a>`;
+                         const profileUrl = (user.role === 'owner' || user.role === 'restaurant_owner') ? 'owner-profile.html' : 'profile.html';
+                         navUserDisplay.innerHTML = `<a href="${profileUrl}" id="profile-link-content" class="nav-link text-decoration-none d-flex align-items-center">Hello, ${user.name}</a>`;
                          
                          // Remove flag so next refresh shows image immediately
                          sessionStorage.removeItem('welcome_user');
@@ -114,12 +166,12 @@ const Auth = {
                              }
                          }, 2500);
                      } else {
-                         // Case 2: Normal Navigation -> Show Image Immediately
+                         // Case 2: Standard Display -> Show Image or Icon
+                         const profileUrl = (user.role === 'owner' || user.role === 'restaurant_owner') ? 'owner-profile.html' : 'profile.html';
                          const imgHtml = user.image 
                              ? `<img src="${user.image}" alt="Profile" class="rounded-circle object-fit-cover shadow-sm" style="width: 32px; height: 32px; border: 2px solid var(--brand-color);">`
                              : `<i class="bi bi-person-circle fs-4 text-brand"></i>`;
-                         
-                         navUserDisplay.innerHTML = `<a href="profile.html" class="nav-link text-decoration-none d-flex align-items-center">${imgHtml}</a>`;
+                         navUserDisplay.innerHTML = `<a href="${profileUrl}" class="nav-link text-decoration-none d-flex align-items-center">${imgHtml}</a>`;
                      }
                 }
             } else {

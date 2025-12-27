@@ -1,0 +1,65 @@
+[
+  {
+    "code": "WELCOME50",
+    "title": "Welcome Offer",
+    "description": "Get 50% OFF on your first order! (Max discount ₹100)",
+    "type": "percent",
+    "value": 50,
+    "maxDiscount": 100,
+    "minOrder": 200,
+    "restaurantId": null,
+    "expiryDate": "2025-12-31T23:59:59.000Z",
+    "image": "https://img.icons8.com/color/96/000000/gift.png",
+    "tag": "NEW"
+  },
+  {
+    "code": "FLAT100",
+    "title": "Flat ₹100 OFF",
+    "description": "Enjoy a flat ₹100 discount on orders above ₹500.",
+    "type": "flat",
+    "value": 100,
+    "minOrder": 500,
+    "restaurantId": null,
+    "expiryDate": "2025-06-30T23:59:59.000Z",
+    "image": "https://img.icons8.com/color/96/000000/discount.png",
+    "tag": "BESTSELLER"
+  },
+  {
+    "code": "SPICE20",
+    "title": "Spice Symphony Special",
+    "description": "20% OFF on all Spice Symphony orders. (Max ₹200)",
+    "type": "percent",
+    "value": 20,
+    "maxDiscount": 200,
+    "minOrder": 300,
+    "restaurantId": 1,
+    "expiryDate": "2025-03-31T23:59:59.000Z",
+    "image": "https://img.icons8.com/color/96/000000/spicy-food.png",
+    "tag": "RESTAURANT"
+  },
+  {
+    "code": "WEEKEND25",
+    "title": "Weekend Feast",
+    "description": "25% OFF on weekends! Min order ₹400. (Max ₹150)",
+    "type": "percent",
+    "value": 25,
+    "maxDiscount": 150,
+    "minOrder": 400,
+    "restaurantId": null,
+    "expiryDate": "2025-12-31T23:59:59.000Z",
+    "image": "https://img.icons8.com/color/96/000000/party-baloons.png",
+    "tag": "WEEKEND"
+  },
+  {
+    "code": "MASTERCHEF",
+    "title": "MasterChef Selection",
+    "description": "₹150 OFF on orders above ₹1000.",
+    "type": "flat",
+    "value": 150,
+    "minOrder": 1000,
+    "restaurantId": null,
+    "expiryDate": "2025-12-31T23:59:59.000Z",
+    "image": "https://img.icons8.com/color/96/000000/chef-hat.png",
+    "tag": "PREMIUM"
+  }
+]
