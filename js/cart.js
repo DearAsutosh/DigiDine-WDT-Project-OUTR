@@ -1,10 +1,5 @@
 const Cart = {
     KEY: 'cart',
-    PROMOS: {
-        'WELCOME50': { type: 'percent', value: 50, max: 100, restaurantId: null }, // Valid for all
-        'FLAT100': { type: 'flat', value: 100, min: 500, restaurantId: null },
-        'SPICE20': { type: 'percent', value: 20, max: 200, restaurantId: 1 } // Only for Spice Symphony (ID 1)
-    },
 
     getCart: function() {
         const cart = localStorage.getItem(this.KEY);
@@ -114,33 +109,35 @@ const Cart = {
         this.updateBadge();
     },
 
-    checkout: function(promoCode) {
+    checkout: async function(promoCode) {
          const user = Auth.getCurrentUser();
-         if (!user) return false;
+         if (!user) return { success: false, message: 'Not logged in' };
 
          const cart = this.getCart();
          const totals = this.getTotals(promoCode);
          
-         const order = {
-             id: Date.now(), // Simple ID
-             date: new Date().toISOString(),
-             items: cart,
-             total: totals.toPay,
-             restaurantId: cart[0].restaurantId, // Assuming single restaurant cart
-             status: 'Placed'
-         };
+         try {
+             const orderData = {
+                 userEmail: user.email,
+                 items: cart,
+                 restaurantId: cart[0].restaurantId,
+                 subtotal: totals.itemTotal,
+                 discount: totals.discount,
+                 total: totals.toPay,
+                 promoCode: promoCode
+             };
 
-         // Save to User's Order History
-         const historyKey = `orders_${user.email}`;
-         const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
-         history.unshift(order); // Add to top
-         localStorage.setItem(historyKey, JSON.stringify(history));
-
-         this.clearCart();
-         return true;
+             const response = await ApiClient.placeOrder(orderData);
+             this.clearCart();
+             return { success: true, order: response.order };
+         } catch (error) {
+             console.error('Checkout failed:', error);
+             return { success: false, message: error.message };
+         }
     },
 
-    getTotals: function(appliedPromoCode = null) {
+    // Note: getTotals remains sync but assumes promo is pre-validated or passed in
+    getTotals: function(appliedPromo = null) {
         const cart = this.getCart();
         const itemTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
         
@@ -150,13 +147,12 @@ const Cart = {
         
         // Discount
         let discount = 0;
-        if (appliedPromoCode && this.PROMOS[appliedPromoCode]) {
-            const promo = this.PROMOS[appliedPromoCode];
-            if (promo.type === 'percent') {
-                discount = Math.min((itemTotal * promo.value / 100), promo.max || 9999);
-            } else if (promo.type === 'flat') {
-                if (itemTotal >= (promo.min || 0)) {
-                    discount = promo.value;
+        if (appliedPromo) {
+            if (appliedPromo.type === 'percent') {
+                discount = Math.min((itemTotal * appliedPromo.value / 100), appliedPromo.maxDiscount || appliedPromo.max || 9999);
+            } else if (appliedPromo.type === 'flat') {
+                if (itemTotal >= (appliedPromo.min || 0)) {
+                    discount = appliedPromo.value;
                 }
             }
         }
@@ -173,19 +169,15 @@ const Cart = {
         };
     },
 
-    validatePromo: function(code, cartItems) {
-        // Returns { valid: boolean, message: string }
-        const promo = this.PROMOS[code];
-        if (!promo) return { valid: false, message: 'Invalid Promo Code' };
+    validatePromo: async function(code, cartItems) {
+        if (!cartItems || cartItems.length === 0) return { valid: false, message: 'Cart is empty' };
         
-        // Check restaurant restriction
-        if (promo.restaurantId && cartItems.length > 0) {
-            const cartRestId = cartItems[0].restaurantId;
-            if (promo.restaurantId !== cartRestId) {
-                return { valid: false, message: 'Promo code not applicable for this restaurant' };
-            }
+        try {
+            const response = await ApiClient.validatePromo(code, cartItems[0].restaurantId, this.getTotals().itemTotal);
+            return { valid: true, message: response.message, promo: response.promo };
+        } catch (error) {
+            return { valid: false, message: error.message };
         }
-        return { valid: true, message: 'Promo applied' };
     },
 
     updateBadge: function() {
