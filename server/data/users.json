@@ -62,5 +62,23 @@
     "role": "owner",
     "restaurantId": 1766373380607,
     "createdAt": "2025-12-22T03:16:20.607Z"
+  },
+  {
+    "id": 1767358123591,
+    "name": "rudra",
+    "email": "rudra@pv.com",
+    "password": "hui",
+    "role": "customer",
+    "restaurantId": null,
+    "createdAt": "2026-01-02T12:48:43.591Z"
+  },
+  {
+    "id": 1767358161715,
+    "name": "asutosh sahoo",
+    "email": "rest@1.com",
+    "password": "hui",
+    "role": "owner",
+    "restaurantId": 1767358161715,
+    "createdAt": "2026-01-02T12:49:21.715Z"
   }
 ]

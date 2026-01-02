@@ -31,7 +31,7 @@ const io = new Server(httpServer, {
         methods: ["GET", "POST"]
     }
 });
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 
 // --- Socket.IO Room Management ---
 io.on('connection', (socket) => {
@@ -85,6 +85,7 @@ const DATA_PATH = path.join(__dirname, 'data', 'restaurants.json');
 const USERS_PATH = path.join(__dirname, 'data', 'users.json');
 const ORDERS_PATH = path.join(__dirname, 'data', 'orders.json');
 const OFFERS_PATH = path.join(__dirname, 'data', 'offers.json');
+const QUERIES_PATH = path.join(__dirname, 'data', 'queries.json');
 
 const getRestaurants = () => {
     try {
@@ -156,6 +157,27 @@ const getOffers = () => {
     } catch (error) {
         console.error('Error reading offers data:', error);
         return [];
+    }
+};
+
+const getQueries = () => {
+    try {
+        if (!fs.existsSync(QUERIES_PATH)) return [];
+        const data = fs.readFileSync(QUERIES_PATH, 'utf8');
+        return JSON.parse(data || '[]');
+    } catch (error) {
+        console.error('Error reading queries data:', error);
+        return [];
+    }
+};
+
+const saveQueries = (queries) => {
+    try {
+        fs.writeFileSync(QUERIES_PATH, JSON.stringify(queries, null, 2));
+        return true;
+    } catch (error) {
+        console.error('Error saving queries data:', error);
+        return false;
     }
 };
 
@@ -798,6 +820,59 @@ app.delete('/api/owner/menu/:itemId', (req, res) => {
     saveRestaurants(restaurants);
 
     res.json({ message: 'Item removed successfully' });
+});
+
+/**
+ * --- Contact / Queries Endpoints ---
+ */
+
+/**
+ * @route   POST /api/contact
+ * @desc    Submit a new query/message
+ */
+app.post('/api/contact', (req, res) => {
+    const { restaurantId, name, email, subject, message } = req.body;
+
+    if (!restaurantId || !name || !email || !message) {
+        return res.status(400).json({ message: 'All fields are required' });
+    }
+
+    const queries = getQueries();
+    const newQuery = {
+        id: Date.now(),
+        restaurantId: parseInt(restaurantId),
+        name,
+        email,
+        subject: subject || 'No Subject',
+        message,
+        date: new Date().toISOString(),
+        isRead: false
+    };
+
+    queries.push(newQuery);
+    saveQueries(queries);
+
+    res.json({ message: 'Message sent successfully', query: newQuery });
+});
+
+/**
+ * @route   GET /api/owner/queries
+ * @desc    Get queries for the owner's restaurant
+ */
+app.get('/api/owner/queries', (req, res) => {
+    const { email } = req.query;
+
+    const users = getUsers();
+    const user = users.find(u => u.email === email);
+    if (!user || (user.role !== 'owner' && user.role !== 'restaurant_owner')) {
+        return res.status(403).json({ message: 'Access denied: Owners only' });
+    }
+
+    const queries = getQueries();
+    const ownerQueries = queries.filter(q => q.restaurantId === user.restaurantId)
+                                .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    res.json(ownerQueries);
 });
 
 /**
