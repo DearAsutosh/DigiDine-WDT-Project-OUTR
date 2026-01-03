@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1767372962121,
+    "restaurantId": 1767358161715,
+    "name": "rudra",
+    "email": "rudra@pv.com",
+    "subject": "sdfsfsdf",
+    "message": "dsfsdfsdfdsf",
+    "date": "2026-01-02T16:56:02.121Z",
+    "isRead": false
+  },
+  {
+    "id": 1767413372669,
+    "restaurantId": 1767358161715,
+    "name": "rudra",
+    "email": "rudra@pv.com",
+    "subject": "issue with order last night",
+    "message": "faltu taste",
+    "date": "2026-01-03T04:09:32.669Z",
+    "isRead": false
+  }
+]

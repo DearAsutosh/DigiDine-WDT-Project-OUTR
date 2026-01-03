@@ -8,7 +8,8 @@
     "maxDiscount": 100,
     "minOrder": 200,
     "restaurantId": null,
-    "expiryDate": "2025-12-31T23:59:59.000Z",
+    "expiryDate": "2030-12-31T23:59:59.000Z",
+
     "image": "https://img.icons8.com/color/96/000000/gift.png",
     "tag": "NEW"
   },
@@ -20,7 +21,9 @@
     "value": 100,
     "minOrder": 500,
     "restaurantId": null,
-    "expiryDate": "2025-06-30T23:59:59.000Z",
+
+    "expiryDate": "2030-06-30T23:59:59.000Z",
+
     "image": "https://img.icons8.com/color/96/000000/discount.png",
     "tag": "BESTSELLER"
   },
@@ -33,7 +36,9 @@
     "maxDiscount": 200,
     "minOrder": 300,
     "restaurantId": 1,
-    "expiryDate": "2025-03-31T23:59:59.000Z",
+
+    "expiryDate": "2030-03-31T23:59:59.000Z",
+
     "image": "https://img.icons8.com/color/96/000000/spicy-food.png",
     "tag": "RESTAURANT"
   },
@@ -46,7 +51,9 @@
     "maxDiscount": 150,
     "minOrder": 400,
     "restaurantId": null,
-    "expiryDate": "2025-12-31T23:59:59.000Z",
+
+    "expiryDate": "2030-12-31T23:59:59.000Z",
+
     "image": "https://img.icons8.com/color/96/000000/party-baloons.png",
     "tag": "WEEKEND"
   },
@@ -58,7 +65,8 @@
     "value": 150,
     "minOrder": 1000,
     "restaurantId": null,
-    "expiryDate": "2025-12-31T23:59:59.000Z",
+    "expiryDate": "2030-12-31T23:59:59.000Z",
+
     "image": "https://img.icons8.com/color/96/000000/chef-hat.png",
     "tag": "PREMIUM"
   }
