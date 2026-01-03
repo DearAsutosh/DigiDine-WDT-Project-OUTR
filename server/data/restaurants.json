@@ -1,7 +1,7 @@
 [
   {
     "id": 1,
-    "name": "DigiDine - Khandagiri",
+    "name": "Spice Symphony",
     "rating": 4.5,
     "deliveryTime": "30-40 mins",
     "cuisine": "North Indian, Chinese",
@@ -54,7 +54,7 @@
   },
   {
     "id": 2,
-    "name": "DigiDine - Patia",
+    "name": "Burger Bistro",
     "rating": 4.2,
     "deliveryTime": "25-35 mins",
     "cuisine": "American, Fast Food",
@@ -107,7 +107,7 @@
   },
   {
     "id": 3,
-    "name": "DigiDine - Ghatikia",
+    "name": "Pizza Paradise",
     "rating": 3.8,
     "deliveryTime": "40-50 mins",
     "cuisine": "Italian, Pizzas",
@@ -160,7 +160,7 @@
   },
   {
     "id": 4,
-    "name": "DigiDine - Patrapada",
+    "name": "Sushi Spot",
     "rating": 4.8,
     "deliveryTime": "45-55 mins",
     "cuisine": "Japanese, Asian",
@@ -213,7 +213,7 @@
   },
   {
     "id": 5,
-    "name": "DigiDine - Baramunda",
+    "name": "China Town",
     "rating": 4,
     "deliveryTime": "30-45 mins",
     "cuisine": "Chinese, Thai",
@@ -266,7 +266,7 @@
   },
   {
     "id": 6,
-    "name": "DigiDine - Saheed Nagar",
+    "name": "Healthy Harvest",
     "rating": 4.6,
     "deliveryTime": "25-35 mins",
     "cuisine": "Healthy, Salads",
@@ -319,7 +319,7 @@
   },
   {
     "id": 7,
-    "name": "DigiDine - Ghatikia KhaoGali",
+    "name": "Taco Fiesta",
     "rating": 4.3,
     "deliveryTime": "35-45 mins",
     "cuisine": "Mexican",
@@ -372,7 +372,7 @@
   },
   {
     "id": 8,
-    "name": "DigiDine - Kalinga Nagar",
+    "name": "South Coast",
     "rating": 4.7,
     "deliveryTime": "20-30 mins",
     "cuisine": "South Indian",
@@ -425,7 +425,7 @@
   },
   {
     "id": 9,
-    "name": "DigiDine - SUM Road",
+    "name": "Dessert Dreams",
     "rating": 4.9,
     "deliveryTime": "20-40 mins",
     "cuisine": "Bakery, Desserts",
@@ -478,7 +478,7 @@
   },
   {
     "id": 10,
-    "name": "DigiDine - Naka Gate",
+    "name": "Biryani Blues",
     "rating": 4.4,
     "deliveryTime": "30-50 mins",
     "cuisine": "Biryani, Mughlai",
@@ -531,7 +531,7 @@
   },
   {
     "id": 11,
-    "name": "DigiDine - CRPF Square",
+    "name": "Chaap Corner",
     "rating": 4.2,
     "deliveryTime": "25-35 mins",
     "cuisine": "North Indian, Snacks",
@@ -584,7 +584,7 @@
   },
   {
     "id": 12,
-    "name": "DigiDine - Ghatikia West",
+    "name": "Puri Sabzi Wala",
     "rating": 4.5,
     "deliveryTime": "20-30 mins",
     "cuisine": "Street Food, Breakfast",
@@ -637,7 +637,7 @@
   },
   {
     "id": 1766347503023,
-    "name": "DigiDine - Main Outlet",
+    "name": "veg club",
     "cuisine": "General",
     "rating": 4,
     "reviews": 0,
@@ -660,7 +660,7 @@
   },
   {
     "id": 1766373380607,
-    "name": "DigiDine - Ghatikia East",
+    "name": "Amaira",
     "location": "ghatikia",
     "cuisine": "General",
     "rating": 4,
@@ -690,39 +690,5 @@
     ],
     "ratingCount": 23,
     "totalRating": 93
-  },
-  {
-    "id": 1767358161715,
-    "name": "DigiDine - Food Court",
-    "location": "food court",
-    "cuisine": "General",
-    "rating": 4,
-    "reviews": 0,
-    "deliveryTime": "30-40 min",
-    "costForTwo": 500,
-    "image": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4",
-    "menu": [
-      {
-        "name": "chicken 65 biryani",
-        "price": 120,
-        "type": "non-veg",
-        "description": "bhala lage non-veg",
-        "image": "https://uptownasia.in/wp-content/uploads/2024/09/Chicken-65-Biryanii.jpg",
-        "id": 1767358241208,
-        "restaurantId": 1767358161715,
-        "available": true
-      },
-      {
-        "name": "veg biryani",
-        "price": 80,
-        "type": "veg",
-        "description": "bhala lage",
-        "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSlg7JYWWJNnY-MJVGm02itthRtcc105HPt4Q&s",
-        "id": 1767358270650,
-        "restaurantId": 1767358161715
-      }
-    ],
-    "ratingCount": 21,
-    "totalRating": 85
   }
 ]
