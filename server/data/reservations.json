@@ -1,0 +1,86 @@
+[
+  {
+    "id": 1767378956876,
+    "restaurantId": 1767358161715,
+    "userId": 1767358123591,
+    "userEmail": "rudra@pv.com",
+    "tableId": 14,
+    "date": "2026-01-03",
+    "time": "12:00",
+    "guests": 2,
+    "status": "Confirmed",
+    "createdAt": "2026-01-02T18:35:56.876Z"
+  },
+  {
+    "id": 1767378970411,
+    "restaurantId": 1767358161715,
+    "userId": 1767358123591,
+    "userEmail": "rudra@pv.com",
+    "tableId": 14,
+    "date": "2026-01-05",
+    "time": "12:00",
+    "guests": 2,
+    "status": "Cancelled",
+    "createdAt": "2026-01-02T18:36:10.411Z"
+  },
+  {
+    "id": 1767379940914,
+    "restaurantId": 1767358161715,
+    "userId": 1767358123591,
+    "userEmail": "rudra@pv.com",
+    "tableId": 14,
+    "date": "2026-01-03",
+    "time": "12:00",
+    "guests": 2,
+    "status": "Pending",
+    "createdAt": "2026-01-02T18:52:20.914Z"
+  },
+  {
+    "id": 1767379961345,
+    "restaurantId": 1,
+    "userId": 1767358123591,
+    "userEmail": "rudra@pv.com",
+    "tableId": 2,
+    "date": "2026-01-03",
+    "time": "12:00",
+    "guests": 2,
+    "status": "Pending",
+    "createdAt": "2026-01-02T18:52:41.345Z"
+  },
+  {
+    "id": 1767380086781,
+    "restaurantId": 1767358161715,
+    "userId": 1767358123591,
+    "userEmail": "rudra@pv.com",
+    "tableId": 14,
+    "date": "2026-01-03",
+    "time": "12:00",
+    "guests": 2,
+    "status": "Pending",
+    "createdAt": "2026-01-02T18:54:46.782Z"
+  },
+  {
+    "id": 1767381066046,
+    "restaurantId": 1767358161715,
+    "userId": 1767358123591,
+    "userEmail": "rudra@pv.com",
+    "tableId": 14,
+    "date": "2026-01-03",
+    "time": "12:00",
+    "guests": 2,
+    "status": "Pending",
+    "createdAt": "2026-01-02T19:11:06.046Z"
+  },
+  {
+    "id": 1767413203521,
+    "restaurantId": 1767358161715,
+    "userId": 1767358123591,
+    "userEmail": "rudra@pv.com",
+    "tableId": 16,
+    "date": "2026-01-04",
+    "time": "12:00",
+    "guests": 4,
+    "status": "Confirmed",
+    "createdAt": "2026-01-03T04:06:43.521Z"
+  }
+]

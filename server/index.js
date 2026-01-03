@@ -86,6 +86,9 @@ const USERS_PATH = path.join(__dirname, 'data', 'users.json');
 const ORDERS_PATH = path.join(__dirname, 'data', 'orders.json');
 const OFFERS_PATH = path.join(__dirname, 'data', 'offers.json');
 const QUERIES_PATH = path.join(__dirname, 'data', 'queries.json');
+const TABLES_PATH = path.join(__dirname, 'data', 'tables.json');
+const STAFF_PATH = path.join(__dirname, 'data', 'staff.json');
+const RESERVATIONS_PATH = path.join(__dirname, 'data', 'reservations.json');
 
 const getRestaurants = () => {
     try {
@@ -181,6 +184,69 @@ const saveQueries = (queries) => {
     }
 };
 
+const getTables = () => {
+    try {
+        if (!fs.existsSync(TABLES_PATH)) return [];
+        const data = fs.readFileSync(TABLES_PATH, 'utf8');
+        return JSON.parse(data || '[]');
+    } catch (error) {
+        console.error('Error reading tables data:', error);
+        return [];
+    }
+};
+
+const saveTables = (tables) => {
+    try {
+        fs.writeFileSync(TABLES_PATH, JSON.stringify(tables, null, 2));
+        return true;
+    } catch (error) {
+        console.error('Error saving tables data:', error);
+        return false;
+    }
+};
+
+const getStaff = () => {
+    try {
+        if (!fs.existsSync(STAFF_PATH)) return [];
+        const data = fs.readFileSync(STAFF_PATH, 'utf8');
+        return JSON.parse(data || '[]');
+    } catch (error) {
+        console.error('Error reading staff data:', error);
+        return [];
+    }
+};
+
+const saveStaff = (staff) => {
+    try {
+        fs.writeFileSync(STAFF_PATH, JSON.stringify(staff, null, 2));
+        return true;
+    } catch (error) {
+        console.error('Error saving staff data:', error);
+        return false;
+    }
+};
+
+const getReservations = () => {
+    try {
+        if (!fs.existsSync(RESERVATIONS_PATH)) return [];
+        const data = fs.readFileSync(RESERVATIONS_PATH, 'utf8');
+        return JSON.parse(data || '[]');
+    } catch (error) {
+        console.error('Error reading reservations data:', error);
+        return [];
+    }
+};
+
+const saveReservations = (reservations) => {
+    try {
+        fs.writeFileSync(RESERVATIONS_PATH, JSON.stringify(reservations, null, 2));
+        return true;
+    } catch (error) {
+        console.error('Error saving reservations data:', error);
+        return false;
+    }
+};
+
 /**
  * Migration: Ensure all existing orders have a status and history
  * Runs once on server startup
@@ -240,7 +306,7 @@ const runMigration = () => {
 
     if (migratedRestaurants) {
         saveRestaurants(updatedRestaurants);
-        console.log('--- Migration: Restaurant ratings initialized ---');
+        console.log('--- Migration: Outlet ratings initialized ---');
     }
 };
 
@@ -320,6 +386,22 @@ app.post('/api/orders', (req, res) => {
 
     if (!userEmail || !items || !items.length) {
         return res.status(400).json({ message: 'Invalid order data' });
+    }
+
+    // Availability Check
+    const restaurants = getRestaurants();
+    const restaurant = restaurants.find(r => r.id === restaurantId);
+    if (!restaurant) {
+        return res.status(404).json({ message: 'Restaurant not found' });
+    }
+
+    for (const orderItem of items) {
+        const menuItem = restaurant.menu.find(m => m.id === orderItem.id);
+        if (!menuItem || menuItem.available === false) {
+            return res.status(400).json({ 
+                message: `Sorry, ${orderItem.name} is currently out of stock. Please remove it from your cart.` 
+            });
+        }
     }
 
     const orders = getOrders();
@@ -1054,12 +1136,12 @@ app.delete('/api/auth/profile/:email', (req, res) => {
         return res.status(404).json({ message: 'User not found' });
     }
 
-    // If owner, delete associated restaurant
+    // If owner, delete associated outlet
     if (user.role === 'owner' && user.restaurantId) {
         let restaurants = getRestaurants();
         restaurants = restaurants.filter(r => r.id !== user.restaurantId);
         saveRestaurants(restaurants);
-        console.log(`[DELETION] Restaurant ${user.restaurantId} removed.`);
+        console.log(`[DELETION] Outlet ${user.restaurantId} removed.`);
     }
 
     // Delete user
@@ -1067,6 +1149,65 @@ app.delete('/api/auth/profile/:email', (req, res) => {
     saveUsers(users);
 
     res.json({ message: 'Account and associated data deleted successfully' });
+});
+
+// --- Super-Admin Endpoints ---
+
+/**
+ * @route   GET /api/admin/stats
+ * @desc    Get global stats (admin only)
+ */
+app.get('/api/admin/stats', (req, res) => {
+    const { email } = req.query;
+    const users = getUsers();
+    const user = users.find(u => u.email === email);
+
+    if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+    }
+
+    const restaurants = getRestaurants();
+    const orders = getOrders();
+    const usersList = getUsers();
+
+    const totalRevenue = orders
+        .filter(o => o.status === 'Delivered')
+        .reduce((sum, o) => sum + o.total, 0);
+
+    res.json({
+        totalOutlets: restaurants.length,
+        totalOrders: orders.length,
+        totalRevenue: totalRevenue,
+        totalUsers: usersList.length,
+        activeOrders: orders.filter(o => !['Delivered', 'Cancelled'].includes(o.status)).length
+    });
+});
+
+/**
+ * @route   GET /api/admin/outlets
+ * @desc    Get all outlets with manager details
+ */
+app.get('/api/admin/outlets', (req, res) => {
+    const { email } = req.query;
+    const users = getUsers();
+    const user = users.find(u => u.email === email);
+
+    if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+    }
+
+    const restaurants = getRestaurants();
+    const managers = users.filter(u => u.role === 'owner');
+
+    const outletsWithManagers = restaurants.map(r => {
+        const manager = managers.find(m => m.restaurantId === r.id);
+        return {
+            ...r,
+            manager: manager ? { name: manager.name, email: manager.email } : null
+        };
+    });
+
+    res.json(outletsWithManagers);
 });
 
 /**
@@ -1134,6 +1275,217 @@ app.get('/api/restaurants/:id', (req, res) => {
 });
 
 /**
+ * @route   GET /api/owner/tables
+ * @desc    Get all tables for an outlet
+ */
+app.get('/api/owner/tables', (req, res) => {
+    const { email } = req.query;
+    const users = getUsers();
+    const user = users.find(u => u.email === email);
+
+    if (!user || (!user.restaurantId && user.role !== 'admin')) {
+        return res.status(403).json({ message: 'Unauthorized access' });
+    }
+
+    const tables = getTables();
+    const myTables = tables.filter(t => t.restaurantId === user.restaurantId);
+    res.json(myTables);
+});
+
+/**
+ * @route   POST /api/owner/tables
+ * @desc    Add a new table
+ */
+app.post('/api/owner/tables', (req, res) => {
+    const { email, number, capacity } = req.body;
+    const users = getUsers();
+    const user = users.find(u => u.email === email);
+
+    if (!user || !user.restaurantId) {
+        return res.status(403).json({ message: 'Unauthorized access' });
+    }
+
+    const tables = getTables();
+    const newTable = {
+        id: Date.now(),
+        restaurantId: user.restaurantId,
+        number,
+        capacity: parseInt(capacity),
+        status: 'Available'
+    };
+
+    tables.push(newTable);
+    saveTables(tables);
+    res.status(201).json({ message: 'Table added successfully', table: newTable });
+});
+
+/**
+ * @route   PUT /api/owner/tables/:id
+ * @desc    Update table status or info
+ */
+app.put('/api/owner/tables/:id', (req, res) => {
+    const { id } = req.params;
+    const { email, status, number, capacity } = req.body;
+    const users = getUsers();
+    const user = users.find(u => u.email === email);
+
+    if (!user || !user.restaurantId) {
+        return res.status(403).json({ message: 'Unauthorized access' });
+    }
+
+    let tables = getTables();
+    const tableIndex = tables.findIndex(t => t.id === parseInt(id) && t.restaurantId === user.restaurantId);
+
+    if (tableIndex === -1) {
+        return res.status(404).json({ message: 'Table not found' });
+    }
+
+    tables[tableIndex] = {
+        ...tables[tableIndex],
+        status: status || tables[tableIndex].status,
+        number: number || tables[tableIndex].number,
+        capacity: capacity ? parseInt(capacity) : tables[tableIndex].capacity
+    };
+
+    saveTables(tables);
+    res.json({ message: 'Table updated successfully', table: tables[tableIndex] });
+});
+
+/**
+ * @route   DELETE /api/owner/tables/:id
+ * @desc    Delete a table
+ */
+app.delete('/api/owner/tables/:id', (req, res) => {
+    const { id } = req.params;
+    const { email } = req.query;
+    const users = getUsers();
+    const user = users.find(u => u.email === email);
+
+    if (!user || !user.restaurantId) {
+        return res.status(403).json({ message: 'Unauthorized access' });
+    }
+
+    let tables = getTables();
+    const initialLength = tables.length;
+    tables = tables.filter(t => !(t.id === parseInt(id) && t.restaurantId === user.restaurantId));
+
+    if (tables.length === initialLength) {
+        return res.status(404).json({ message: 'Table not found or unauthorized' });
+    }
+
+    saveTables(tables);
+    res.json({ message: 'Table deleted successfully' });
+});
+
+/**
+ * @route   GET /api/owner/staff
+ * @desc    Get all staff for an outlet
+ */
+app.get('/api/owner/staff', (req, res) => {
+    const { email } = req.query;
+    const users = getUsers();
+    const user = users.find(u => u.email === email);
+
+    if (!user || !user.restaurantId) {
+        return res.status(403).json({ message: 'Unauthorized access' });
+    }
+
+    const staff = getStaff();
+    const myStaff = staff.filter(s => s.restaurantId === user.restaurantId);
+    res.json(myStaff);
+});
+
+/**
+ * @route   POST /api/owner/staff
+ * @desc    Add a new staff member
+ */
+app.post('/api/owner/staff', (req, res) => {
+    const { email, name, role, phone, salary } = req.body;
+    const users = getUsers();
+    const user = users.find(u => u.email === email);
+
+    if (!user || !user.restaurantId) {
+        return res.status(403).json({ message: 'Unauthorized access' });
+    }
+
+    const staff = getStaff();
+    const newStaff = {
+        id: Date.now(),
+        restaurantId: user.restaurantId,
+        name,
+        role,
+        phone,
+        salary: parseInt(salary),
+        status: 'Active',
+        joinedDate: new Date().toISOString()
+    };
+
+    staff.push(newStaff);
+    saveStaff(staff);
+    res.status(201).json({ message: 'Staff member added successfully', staff: newStaff });
+});
+
+/**
+ * @route   PUT /api/owner/staff/:id
+ * @desc    Update staff information
+ */
+app.put('/api/owner/staff/:id', (req, res) => {
+    const { id } = req.params;
+    const { email, name, role, phone, salary, status } = req.body;
+    const users = getUsers();
+    const user = users.find(u => u.email === email);
+
+    if (!user || !user.restaurantId) {
+        return res.status(403).json({ message: 'Unauthorized access' });
+    }
+
+    let staff = getStaff();
+    const staffIndex = staff.findIndex(s => s.id === parseInt(id) && s.restaurantId === user.restaurantId);
+
+    if (staffIndex === -1) {
+        return res.status(404).json({ message: 'Staff member not found' });
+    }
+
+    staff[staffIndex] = {
+        ...staff[staffIndex],
+        name: name || staff[staffIndex].name,
+        role: role || staff[staffIndex].role,
+        phone: phone || staff[staffIndex].phone,
+        salary: salary ? parseInt(salary) : staff[staffIndex].salary,
+        status: status || staff[staffIndex].status
+    };
+
+    saveStaff(staff);
+    res.json({ message: 'Staff information updated successfully', staff: staff[staffIndex] });
+});
+
+/**
+ * @route   DELETE /api/owner/staff/:id
+ * @desc    Delete a staff member
+ */
+app.delete('/api/owner/staff/:id', (req, res) => {
+    const { id } = req.params;
+    const { email } = req.query;
+    const users = getUsers();
+    const user = users.find(u => u.email === email);
+
+    if (!user || !user.restaurantId) {
+        return res.status(403).json({ message: 'Unauthorized access' });
+    }
+
+    let staff = getStaff();
+    const initialLength = staff.length;
+    staff = staff.filter(s => !(s.id === parseInt(id) && s.restaurantId === user.restaurantId));
+
+    if (staff.length === initialLength) {
+        return res.status(404).json({ message: 'Staff member not found or unauthorized' });
+    }
+
+    saveStaff(staff);
+    res.json({ message: 'Staff member removed successfully' });
+});
+
+/**
  * @route   GET /api/health
  * @desc    Check if the server is alive and well
  * @access  Public
@@ -1153,6 +1505,120 @@ app.get('/api/health', (req, res) => {
  */
 app.get('/', (req, res) => {
     res.send('Welcome to the DigiDine API Gateway. Use /api/health for system status.');
+});
+
+/**
+ * @route   GET /api/restaurants/:id/tables
+ * @desc    Get tables for a specific outlet (Public)
+ */
+app.get('/api/restaurants/:id/tables', (req, res) => {
+    const { id } = req.params;
+    const tables = getTables();
+    const filtered = tables.filter(t => t.restaurantId === parseInt(id));
+    res.json(filtered);
+});
+
+// --- Reservation Endpoints ---
+
+/**
+ * @route   POST /api/reservations
+ * @desc    Create a new table reservation
+ */
+app.post('/api/reservations', (req, res) => {
+    const { restaurantId, userId, tableId, date, time, guests, userEmail } = req.body;
+    
+    console.log('Received reservation request:', req.body); // DEBUG
+    
+    // Check for missing or empty required fields
+    if(!restaurantId || !tableId || !date || !time || date.trim() === '' || time.trim() === '') {
+        console.log('Validation failed:', { restaurantId, tableId, date, time }); // DEBUG
+        return res.status(400).json({ message: 'Missing required reservation details' });
+    }
+
+    const reservations = getReservations();
+    const newReservation = {
+        id: Date.now(),
+        restaurantId: parseInt(restaurantId),
+        userId: userId || null,
+        userEmail: userEmail,
+        tableId: parseInt(tableId),
+        date,
+        time,
+        guests: parseInt(guests) || 2,
+        status: 'Pending',
+        createdAt: new Date().toISOString()
+    };
+
+    reservations.push(newReservation);
+    saveReservations(reservations);
+
+    // Emit event to owner
+    emitEvent('new_reservation', newReservation, parseInt(restaurantId));
+
+    res.status(201).json({ message: 'Reservation requested successfully', reservation: newReservation });
+});
+
+/**
+ * @route   GET /api/owner/reservations
+ * @desc    Get all reservations for an outlet
+ */
+app.get('/api/owner/reservations', (req, res) => {
+    const { email } = req.query;
+    const users = getUsers();
+    const user = users.find(u => u.email === email);
+
+    if (!user || (user.role !== 'owner' && user.role !== 'admin')) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const reservations = getReservations();
+    const filtered = user.role === 'admin' 
+        ? reservations 
+        : reservations.filter(r => r.restaurantId === user.restaurantId);
+
+    res.json(filtered);
+});
+
+/**
+ * @route   PUT /api/owner/reservations/:id
+ * @desc    Update reservation status
+ */
+app.put('/api/owner/reservations/:id', (req, res) => {
+    const { id } = req.params;
+    const { status, email } = req.body;
+    
+    const users = getUsers();
+    const user = users.find(u => u.email === email);
+    if (!user || (user.role !== 'owner' && user.role !== 'admin')) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const reservations = getReservations();
+    const index = reservations.findIndex(r => r.id === parseInt(id));
+
+    if (index === -1) return res.status(404).json({ message: 'Reservation not found' });
+    
+    if (user.role !== 'admin' && reservations[index].restaurantId !== user.restaurantId) {
+        return res.status(403).json({ message: 'Not authorized for this outlet' });
+    }
+
+    reservations[index].status = status;
+    saveReservations(reservations);
+
+    res.json({ message: `Reservation ${status}`, reservation: reservations[index] });
+});
+
+/**
+ * @route   GET /api/customer/reservations
+ * @desc    Get reservations for a customer
+ */
+app.get('/api/customer/reservations', (req, res) => {
+    const { email } = req.query;
+    if(!email) return res.status(400).json({ message: 'Email required' });
+
+    const reservations = getReservations();
+    const filtered = reservations.filter(r => r.userEmail === email);
+    res.json(filtered);
 });
 
 // --- Server Initialization ---

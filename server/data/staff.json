@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1,
+    "restaurantId": 1,
+    "name": "Rahul Sharma",
+    "role": "Head Chef",
+    "phone": "9876543210",
+    "salary": 45000,
+    "status": "Active"
+  },
+  {
+    "id": 2,
+    "restaurantId": 1,
+    "name": "Priya Das",
+    "role": "Server",
+    "phone": "9123456780",
+    "salary": 15000,
+    "status": "Active"
+  },
+  {
+    "id": 1767374856054,
+    "restaurantId": 1767358161715,
+    "name": "Rudra Narayan Jena",
+    "role": "Volunteer",
+    "phone": "8895302581",
+    "salary": 15000,
+    "status": "Active",
+    "joinedDate": "2026-01-02T17:27:36.054Z"
+  }
+]

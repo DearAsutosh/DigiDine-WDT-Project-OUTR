@@ -1,0 +1,128 @@
+[
+  {
+    "id": 1,
+    "restaurantId": 1,
+    "number": "1",
+    "capacity": 2,
+    "status": "Available"
+  },
+  {
+    "id": 2,
+    "restaurantId": 1,
+    "number": "2",
+    "capacity": 4,
+    "status": "Available"
+  },
+  {
+    "id": 3,
+    "restaurantId": 1,
+    "number": "3",
+    "capacity": 6,
+    "status": "Available"
+  },
+  {
+    "id": 4,
+    "restaurantId": 2,
+    "number": "T1",
+    "capacity": 2,
+    "status": "Available"
+  },
+  {
+    "id": 5,
+    "restaurantId": 2,
+    "number": "T2",
+    "capacity": 4,
+    "status": "Available"
+  },
+  {
+    "id": 6,
+    "restaurantId": 2,
+    "number": "T3",
+    "capacity": 6,
+    "status": "Occupied"
+  },
+  {
+    "id": 7,
+    "restaurantId": 3,
+    "number": "A1",
+    "capacity": 4,
+    "status": "Available"
+  },
+  {
+    "id": 8,
+    "restaurantId": 3,
+    "number": "A2",
+    "capacity": 2,
+    "status": "Available"
+  },
+  {
+    "id": 9,
+    "restaurantId": 4,
+    "number": "101",
+    "capacity": 4,
+    "status": "Available"
+  },
+  {
+    "id": 10,
+    "restaurantId": 4,
+    "number": "102",
+    "capacity": 6,
+    "status": "Available"
+  },
+  {
+    "id": 11,
+    "restaurantId": 5,
+    "number": "W1",
+    "capacity": 2,
+    "status": "Available"
+  },
+  {
+    "id": 12,
+    "restaurantId": 5,
+    "number": "W2",
+    "capacity": 4,
+    "status": "Available"
+  },
+  {
+    "id": 13,
+    "restaurantId": 1767358161715,
+    "number": "FC-1",
+    "capacity": 4,
+    "status": "Available"
+  },
+  {
+    "id": 14,
+    "restaurantId": 1767358161715,
+    "number": "FC-2",
+    "capacity": 2,
+    "status": "Available"
+  },
+  {
+    "id": 15,
+    "restaurantId": 1767358161715,
+    "number": "FC-3",
+    "capacity": 6,
+    "status": "Available"
+  },
+  {
+    "id": 16,
+    "restaurantId": 1767358161715,
+    "number": "FC-4",
+    "capacity": 4,
+    "status": "Out of Order"
+  },
+  {
+    "id": 1767383836922,
+    "restaurantId": 1767358161715,
+    "number": "8-round",
+    "capacity": 5,
+    "status": "Occupied"
+  },
+  {
+    "id": 1767413170623,
+    "restaurantId": 1767358161715,
+    "number": "T6-round",
+    "capacity": 4,
+    "status": "Available"
+  }
+]
